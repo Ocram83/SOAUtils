@@ -9,9 +9,9 @@ is not faulty, and that the current project configutation is in general correct.
 
 It follows the help screenshot of the script, it's in italian I will translate it soon...
 
-########
-# HELP #
-########
+
+## HELP 
+
 
 This script take as input the relative path to a customization file.
 
