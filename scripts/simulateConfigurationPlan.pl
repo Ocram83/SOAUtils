@@ -1,6 +1,11 @@
 #
 # Author: Marco Sirianni
 #
+# External modules: 
+#
+# http://search.cpan.org/~msergeant/XML-XPath-1.13/XPath.pm
+# http://search.cpan.org/dist/Array-Utils/Utils.pm
+#
 #
 
 use XML::XPath;
