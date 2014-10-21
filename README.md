@@ -7,7 +7,7 @@ This repository contains script and resources for simplifying the developing pro
 Up to now I am working on a script that check that the configuration plan attached to a composite application deployment package 
 is not faulty, and that the current project configutation is in general correct.
 
-It follows the help screenshot of the script, it's in italian I will translate it soon...
+It follows the help screenshot of the script
 
 
 ## HELP 
