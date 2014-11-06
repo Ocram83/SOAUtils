@@ -1,13 +1,19 @@
 #
 # Author: Marco Sirianni
 #
-# A seguito di eventuali modifiche o correzioni, aggiungere un commento qui sotto
+# External modules: 
+#
+# http://search.cpan.org/~msergeant/XML-XPath-1.13/XPath.pm
+# http://search.cpan.org/dist/Array-Utils/Utils.pm
 #
 #
+package soaUtils;
 
 use XML::XPath;
 use Array::Utils qw(:all);
 
+use strict;
+use warnings;
 
 if ( @ARGV < 1  ) 
  {
@@ -16,29 +22,27 @@ if ( @ARGV < 1  )
   # HELP #
   ########
   
-  Questo script riceve in input il percorso relativo del file di customizzazione da applicare
+  This script take as input the relative path to a customization file.
   
-  Questo script deve essere eseguito dalla cartella in cui si trova l'applicazione soa (stessa cartella del file composite.xml)
+  This script must be run from the SOA application directory (the same as the one of the composite.xml)
   
-  Dato il file di customizzazione in input lo script verifica le seguenti condizioni
+  Given the customization file, the composite file, and the wsdls associated to the customization the script verify the following condition
 		
-		1) nei file wsdl a cui si chiede di applicare la trasformazione siano stati sostituiti effettivamente i placeholder indicati 
-		  (controlla unicamente il puntamento nel service). Il controllo consiste nel verificare se :
-			1.2) prima della sostituzione sia presente uno di puntamenti (quindi se MANCA IN PALCEHOLDER)
-			1.2) dopo aver eseguito la sostituzione, nel verificare se dopo l'indirizzo del service contenga la stringa si sostituzione
-				(quindi se qualche PLACEHOLDER E' SCRITTO ERRONEAMENTE)
+	1) All wsdl referred in the composite exist in the current directory..
+	2) All wsdl referred in the composite have a corrispendent token substitution in customization file.
+	3) Placeholder as been substituted to machine endopoint in all wsdl (there are no machine endpoint in wsdl).
+	4) One of the placeholder must be found in the service node of the wsdl (placeholder is not mispelled).
 		
-		2) Le reference del composite siano tutte presenti nella cartella e nell'elenco di file a cui applicare le custommizazioni.
-			2.1) Si suppone che tutti i wsdl siano nella root del progetto.
 		
-  Lo script e' in grado quindi di verificare se 
-	a) manca qualche placeholder
-	b) qualche placeholder e' scritto erroneamente
-	c) se manca qualche file wsdl ( improbabile)
-	d) se qualche file non e' incluso nella ricerca delle sostituzioni del file di customizzazione
+  The script allows for find out if
+  
+	a) some placeholder is missing
+	b) some placeholder is mispelled
+	c) some wsdl file is missing
+	d) some wsdl file is not included in customization file
 
-   
-   Questa versione dello script non verifica ancora se il customizzation file contiene puntamenti a file inesistenti.
+	Remenber that it's up to you to check that the correct token is substituted in the service node of wsdl.
+	This script allows for checking syntactic correctness.
 
 "
 }
@@ -50,19 +54,19 @@ print "\n";
 #  Variable declaration #
 #########################
 
-# E' un array (un elemento per ogni definizione **wsdlAndSchema**) che contiene un array stringhe 
-# (ovvero i nomi dei wsdl a cui applicare la customizzazione)
+# It's an array (one element for each definition of **wsdlAndSchema**) which contains an array of string 
+# (that is, the name of the wsdls which we want to customize)
 my @list_of_wsdlInCustomization;
 
-# E' un array (un elemento per ogni definizione **wsdlAndSchema**) che contiene un hashmap
-# (ovvero un hashmap che contiene la coppia token => puntamento da sostituire)
+# It's an array (one element for each definition of **wsdlAndSchema**) which contains an hashmap
+# (that is,  an hashmap  which contains the pair token => machine endopoint)
 my @list_of_token = ({},);
 
-#E' un array che contiene tutti i nomi dei wsdl puntati come reference nel composite
+# It's an array which containts the name of the wsdls which appear as a reference in the composite application
 my @composite_refs;
 
-#E' un array che contiene tutti i nomi dei wsdl nella directory corrente
-#TODO specificare una o piu' cartelle da cui prelevare i WSDL
+# It's an array which containts the name of the wsdls
+### TODO we may want to specify the directory which contains the wsdls or maybe get the relative path from the composite application.
 my @directory_wsdl;
 
 my $wsdlAndSchemaIndex = 0;
@@ -73,50 +77,44 @@ my $wsdlAndSchemaIndex = 0;
 ############################
 
 #Error output log
-$output_error_log = '';
+my $output_error_log = '';
 
 
-#Il nome del file di customizzazione
-$customizationFileName = "@ARGV[0]";
+#The name of the customizzation file
+my $customizationFileName = "$ARGV[0]";
 
-#Apro il file di customizzazione
-$customizationFile = XML::XPath->new(filename => $customizationFileName) or die "Impossibile trovare il file specificato";
+#Open the customization file
+my $customizationFile = XML::XPath->new(filename => $customizationFileName) or die "Error, the file specified cannot be found";
 
-#Con una query XPATH recupero le customizzazioni
-$nodeset = $customizationFile->find('//wsdlAndSchema') or die "Non ci sono castomizzazioni da applicare"; 
+#XPATH expression to retrieve the customizations 
+my $nodeset = $customizationFile->find('//wsdlAndSchema') or die "There are no customization to apply"; 
 
-#Recupero i dati delle sostituzioni che il file di customizzazione applica
-@values = $nodeset->get_nodelist;
+#Get the nodeset
+my @values = $nodeset->get_nodelist;
 
-#Per ogni tag wsdlAndSchema 
-foreach $val (@values)
+#For each tag wsdlAndSchema 
+foreach my $val (@values)
 {
 	my $wsdlAttribute = $val->getAttribute('name');
 	
-	#Lista di wsdl a cui applicare la customizzazione
-	@wsdlInCustomization = split('\|',$wsdlAttribute); 
+	#List of wsdls to customize
+	my @wsdlInCustomization = split('\|',$wsdlAttribute); 
 	
 	push (@{$list_of_wsdlInCustomization[$wsdlAndSchemaIndex]},@wsdlInCustomization);
 	
 	my $searchReplace_tmp = $customizationFile->find('./searchReplace', $val);
 	 
-	@searchReplace = $searchReplace_tmp->get_nodelist;
+	my @searchReplace = $searchReplace_tmp->get_nodelist;
 	 
-	foreach $val2 (@searchReplace)
+	foreach my $val2 (@searchReplace)
 	{	
 		my $search_tmp = $customizationFile->find('./search', $val2);
 		
-		@search = $search_tmp->get_nodelist;
-		
-		#print $search[0]->string_value." - ";
-		
+		my @search = $search_tmp->get_nodelist;
+				
 		my $replace_tmp = $customizationFile->find('./replace', $val2);
 		
-		@eplace = $replace_tmp->get_nodelist;
-		
-		#print $eplace[0]->string_value;
-		
-		#print "\n";
+		my @eplace = $replace_tmp->get_nodelist;
 		
 		$list_of_token[$wsdlAndSchemaIndex]{$search[0]->string_value} = $eplace[0]->string_value;
 	}
@@ -124,61 +122,39 @@ foreach $val (@values)
 	$wsdlAndSchemaIndex++;
 }
 
-#
-# DECOMMENTARE PER VERIFICARE IL CONTENUTO DI  list_of_wsdlInCustomization E DI list_of_token
-#
-#foreach $val4 (@list_of_wsdlInCustomization)
-#{
-#	print " --> ";
-#	foreach $val5 (@{$val4})
-#	{
-#		print $val5." - ";
-#	}
-#	print "\n";
-#}
-
-# foreach $val4 (@list_of_token)
-# {
-	# print " --> ";
-	
-	# while( my ($k, $v) = each %$val4 ) {
-        # print "key: $k, value: $v.\n";
-    # }
-	# print "\n";
-# }
-
-
 ##################################
 # READ REFERENCES FROM COMPOSITE #
 ##################################
 
-my $compositeFile = XML::XPath->new(filename => "composite.xml") or die "Impossibile trovare il composite file";
+my $compositeFile = XML::XPath->new(filename => "composite.xml") or die "Error, cannnot find the composite file";
 
-#Con una query XPATH recupero le customizzazioni
-my $nodeset_refs = $compositeFile->find('//reference') or die "Non ci sono castomizzazioni da applicare"; 
+#XPATH expression to retrieve the references in composite file 
+my $nodeset_refs = $compositeFile->find('//reference') or die "There are no customization to apply"; 
 
-#Recupero i dati delle sostituzioni che il file di customizzazione applica
-@values_ref = $nodeset_refs->get_nodelist;
+#Get the nodeset
+my @values_ref = $nodeset_refs->get_nodelist;
 
-foreach $value_ref (@values_ref)
-{
-	#print $value_ref->getAttribute('ui:wsdlLocation')."\n";
-	
+foreach my $value_ref (@values_ref)
+{	
 	push(@composite_refs, $value_ref->getAttribute('ui:wsdlLocation'));
 }
 
-# foreach $tmp (@composite_refs)
-# {
-	# print $tmp." - ";
-# }
+print "The composite contains the following references: \n\n";
+
+foreach my $tmp (@composite_refs)
+{
+	print " -- ".$tmp." \n";
+}
 
 
 #####################################
 # READ FILES FROM CURRENT DIRECTORY #
 #####################################
 
+print "\n\nLoading wsdl in current directory...  ";
+
 opendir CurrentDir, ".";     # . is the current directory
-while ( $filename = readdir(CurrentDir) ) {
+while (my $filename = readdir(CurrentDir) ) {
 
 	if($filename  =~ '.*\.wsdl')
 	{
@@ -189,126 +165,125 @@ while ( $filename = readdir(CurrentDir) ) {
 
 closedir CurrentDir;
 
-# foreach $tmp (@directory_wsdl)
-# {
-	# print $tmp." - ";
-# } 
+#++++++++++++++++++++++++++#
+# START CORRECTNESS CHECKS #
+#++++++++++++++++++++++++++#
 
+############################
+# CHECK WSDLs NOT EXISTING #
+############################
 
-
-#+++++++++++++++++++++++++++++#
-# INIZIO CHECK DI CORRETTEZZA #
-#+++++++++++++++++++++++++++++#
-
-
-#######################################
-# CHECK WSDL PRESENTI NELLA DIRECTORY #
-#######################################
+print "\n\nChecking if all reference exist in current directory ... ";
 
 my @minus = array_minus( @composite_refs, @directory_wsdl );
 
-if (scalar @minus == 0)
+if (scalar @minus != 0)
 {
-	print  "Tutti i wsdl sono presenti nella cartella.\nProcedo con la verifica... \n\n";
+	foreach my $tmp (@minus)
+	{
+		$output_error_log .= $tmp." does not exist in the current directory!!\n";
+	}
+	
+	$output_error_log eq '' or  (print $output_error_log."\n" and die "!PLEASE FIX THE PROJECT AND ADD THE MISSING FILES BEFORE PROCEEDING!\n");
+	
+}
+
+if($output_error_log eq '')
+{
+	print "ok\n";
 }
 else
 {
-	foreach $tmp (@minus)
-	{
-		$output_error_log .= $tmp." non e' presente nella cartella!!\n";
-	}
-	
-	$output_error_log eq '' or  (print $output_error_log."\n" and die "!RIPRISTINARE I FILE MANCANTI PRIMA DI PROCEDERE!\n");
-	
+	print "fail\n";
 }
 
-#############################################################
-# CHECK COMPOSITE REFERENCE PRESENTI NEL CUSTOMIZATION FILE #
-#############################################################
+############################################################
+# CHECK COMPOSITE REFERENCE PRESENTI IN CUSTOMIZATION FILE #
+############################################################
+
+print "Checking if all composite reference exist in customization file ... ";
 
 foreach my $temp_ref (@composite_refs)
 {
+	my $ref_found = 0;
 	foreach my $tmp_wsdlAndSchema (@list_of_wsdlInCustomization)
 	{
-		my @minus_wsdlAndSchema = array_minus( @composite_refs, @$tmp_wsdlAndSchema );
 		
-		foreach my $tmp1 (@$tmp_wsdlAndSchema)
+		if ($temp_ref ~~ @$tmp_wsdlAndSchema)
 		{
-		#	print $tmp1." ";
-		}
-		#print "\n\n\n";
-		if (scalar @minus == 0)
-		{
-			#print  "Tutti i reference sono presenti nella file di customizzazione\n\n";
-		}
-		else
-		{
-		#	print "Non presente\n";
+			$ref_found = 1;
 		}
 	}
+	
+	if($ref_found != 1)
+	{
+		$output_error_log .="Error, the reference ".$temp_ref." exists in the composite file but is not mapped for token substitution in ".$customizationFileName."\n\n";
+	}
+	
+}
+if($output_error_log eq '')
+{
+	print "ok\n";
+}
+else
+{
+	print "fail\n";
 }
 
+#####################
+# CHECK CONDIZIONIs #
+#####################
 
-######################
-# CHECK CONDIZIONI 1 #
-######################
+print "Checking wsdl for errors ... ";
 
 foreach my $temp_wsdl (@composite_refs)
 {
-	my $wsdl_File = XML::XPath->new(filename => $temp_wsdl) or die "Impossibile trovare il file specificato";
+	my $wsdl_File = XML::XPath->new(filename => $temp_wsdl) or die "Error, the file ".$temp_wsdl." cannot be found";
 
-	#Con una query XPATH recupero il service
-	my $nodeset_service = $wsdl_File->find("//*[local-name() ='service']//*[local-name() = 'address']") or print "Nodo service non presente.. skipping file...\n"; 
+	#XPATH expression to retrieve the references in composite file 
+	my $nodeset_service = $wsdl_File->find("//*[local-name() ='service']//*[local-name() = 'address']") or $output_error_log .= "Node service does not exists (abstract wsdl) for".$wsdl_File.".. skipping file...\n"; 
 
-	#Recupero i dati delle sostituzioni che il file di customizzazione applica
-	@values_service = $nodeset_service->get_nodelist;
+	#Get nodeset
+	my @values_service = $nodeset_service->get_nodelist;
 	
-	#Ce ne sarà soltanto uno ma per correttezza cicliamo sui risultati
+	#There will always be only one, anyway we iterate
 	foreach my $wsdl_service_location (@values_service)
 	{
 		#print $wsdl_service_location->getAttribute('location')."\n\n\n";
 		my $wsdl_service_location_url = $wsdl_service_location->getAttribute('location');
 		
-		#print $wsdl_service_location_url."\n";
-
-		#Ciclo sui wsdlAndSchema trovati nel customizzation file
+		#Cycle on wsdlAndSchema found in customization file
 		my $index = 0;
-		foreach $val4 (@list_of_token)
+		foreach my $val4 (@list_of_token)
 		{
-			# Devo considerare il wsdl corrente solo se si trova nella definizione di wsdlAndSchema corrispondente ad index
+			# Current wsdl will be considered only if found in the definition of wsdlAndSchema corresponding to index
 			
-			#print $temp_wsdl." - ".$index." - ".($temp_wsdl ~~  @list_of_wsdlInCustomization[$index] )."\n";
-			
-			if ($temp_wsdl ~~  @list_of_wsdlInCustomization[$index])
-			{			
-				#print " trovato --> ".$index."\n";
-				
-				$token_presente = 0;
-				#Ciclo sulle coppie token puntamenti			
+			if ($temp_wsdl ~~  $list_of_wsdlInCustomization[$index])
+			{							
+				my $token_found = 0;
+				#Cycle on pairs of token -> machine endpoint
 				while( my ($k, $v) = each %$val4 ) 
 				{
-					#print $k." ";
-					#print index($wsdl_service_location_url, $k).", ";
 					
-					# Controllo se l'url è presente nella location
-					# Non ci devono essere puntamenti!!
+					# Check if an url is found inside location
+					# There must not be any machine endpoint!!
 					if (index($wsdl_service_location_url, $v) == 0)
 					{
-						$output_error_log .="Errore, trovato il puntamento ".$wsdl_service_location_url." nel file ".$temp_wsdl."\n\n";
+						$output_error_log .="Error, endpoint ".$wsdl_service_location_url." found in file ".$temp_wsdl."\n\n";
 					}
 					
-					# Controllo se è presente il token corrente
-					# Ci deve essere almeno uno dei token
+					# Check if current token apperas in the location
+					# There must be exactly one token!!
 					if (index($wsdl_service_location_url, $k) == 0)
 					{
-						$token_presente = 1;
+						$token_found += 1;
 					}
 
 				}
 				
-				if($token_presente == 0)
+				if($token_found != 1)
 				{
-					$output_error_log .=" Errore, nessuno dei token indicati come sostituzione trovati nel file ".$temp_wsdl."\n\n";
+					$output_error_log .=" Error, non of the specified token substitution has been found in file ".$temp_wsdl."\n\n";
 				}
 				#print "\n";
 			}
@@ -319,13 +294,35 @@ foreach my $temp_wsdl (@composite_refs)
 	
 }
 
+###########
+## TODOs ##
+###########
+
+# CHECK WSDL DUPLICATE IN WSDL_AND_SCHEMA
+
+# CHECK WSDL NOT USED AS REFERENCE
+
+#################
+# PRINT RESULTS #
+#################
+
 if($output_error_log eq '')
 {
-	print "Configurazione corretta!\n";
+	print "ok\n";
+}
+else
+{
+	print "fail\n";
+}
+ 
+
+if($output_error_log eq '')
+{
+	print "\n\nConfiguration is correct!!\n";
 }
 
 else
 {
-	# Stampa lo stack dei messaggi di errore
-	print $output_error_log;
+	# Print error stack
+	print "\n\n".$output_error_log;
 }
