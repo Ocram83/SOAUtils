@@ -176,26 +176,30 @@ closedir CurrentDir;
 print "\n\nChecking if all reference exist in current directory ... ";
 
 my @minus = array_minus( @composite_refs, @directory_wsdl );
+my $output_error_log_local = '';
 
 if (scalar @minus != 0)
 {
 	foreach my $tmp (@minus)
 	{
-		$output_error_log .= $tmp." does not exist in the current directory!!\n";
+		$output_error_log_local .= $tmp." does not exist in the current directory!!\n";
+		$output_error_log .= $output_error_log_local;
 	}
-	
-	$output_error_log eq '' or  (print $output_error_log."\n" and die "!PLEASE FIX THE PROJECT AND ADD THE MISSING FILES BEFORE PROCEEDING!\n");
 	
 }
 
-if($output_error_log eq '')
+if($output_error_log_local eq '')
 {
 	print "ok\n";
 }
 else
 {
 	print "fail\n";
+	print $output_error_log_local."\n" and die "!PLEASE FIX THE PROJECT AND ADD THE MISSING FILES BEFORE PROCEEDING!\n";
 }
+
+#Reset local error variable
+$output_error_log_local = '';
 
 ############################################################
 # CHECK COMPOSITE REFERENCE PRESENTI IN CUSTOMIZATION FILE #
@@ -217,11 +221,13 @@ foreach my $temp_ref (@composite_refs)
 	
 	if($ref_found != 1)
 	{
-		$output_error_log .="Error, the reference ".$temp_ref." exists in the composite file but is not mapped for token substitution in ".$customizationFileName."\n\n";
+		$output_error_log_local .="Error, the reference ".$temp_ref." exists in the composite file but is not mapped for token substitution in ".$customizationFileName."\n\n";
+		$output_error_log .= $output_error_log_local;
 	}
 	
 }
-if($output_error_log eq '')
+
+if($output_error_log_local eq '')
 {
 	print "ok\n";
 }
@@ -229,6 +235,9 @@ else
 {
 	print "fail\n";
 }
+
+#Reset local error variable
+$output_error_log_local = '';
 
 #####################
 # CHECK CONDIZIONIs #
@@ -269,7 +278,8 @@ foreach my $temp_wsdl (@composite_refs)
 					# There must not be any machine endpoint!!
 					if (index($wsdl_service_location_url, $v) == 0)
 					{
-						$output_error_log .="Error, endpoint ".$wsdl_service_location_url." found in file ".$temp_wsdl."\n\n";
+						$output_error_log_local .="Error, endpoint ".$wsdl_service_location_url." found in file ".$temp_wsdl."\n\n";
+						$output_error_log .= $output_error_log_local;
 					}
 					
 					# Check if current token apperas in the location
@@ -283,7 +293,8 @@ foreach my $temp_wsdl (@composite_refs)
 				
 				if($token_found != 1)
 				{
-					$output_error_log .=" Error, non of the specified token substitution has been found in file ".$temp_wsdl."\n\n";
+					$output_error_log_local .=" Error, non of the specified token substitution has been found in file ".$temp_wsdl."\n\n";
+					$output_error_log .= $output_error_log_local;
 				}
 				#print "\n";
 			}
@@ -306,7 +317,7 @@ foreach my $temp_wsdl (@composite_refs)
 # PRINT RESULTS #
 #################
 
-if($output_error_log eq '')
+if($output_error_log_local eq '')
 {
 	print "ok\n";
 }
@@ -315,6 +326,7 @@ else
 	print "fail\n";
 }
  
+$output_error_log_local = '';
 
 if($output_error_log eq '')
 {
