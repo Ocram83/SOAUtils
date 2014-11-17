@@ -4,7 +4,7 @@ SOAUtils
 This repository contains script and resources for simplifying the developing process with Oracle SOA and BPM products
 
 
-Up to now I am working on a script that check that the configuration plan attached to a composite application deployment package 
+Up to now I am working on a script that checks that the configuration plan attached to a composite application deployment package 
 is not faulty, and that the current project configutation is in general correct.
 
 It follows the help screenshot of the script
