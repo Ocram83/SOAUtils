@@ -17,7 +17,7 @@ This script take as input the relative path to a customization file.
 
 This script must be run from the SOA application directory (the same as the one of the composite.xml)
 
-Given the customization file, the composite file, and the wsdl associated to the customization the script verify the following condition
+Given the customization file, the composite file, and the wsdl associated to the customization the script verifies the following condition
 	
 	1) All wsdl referred in the composite exist in the current directory..
 	2) All wsdl referred in the composite have a corrispendent token substitution in customization file.
